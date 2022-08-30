@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:flutter/widgets.dart';
+
 import 'configuration.dart';
 import 'logging.dart';
 import 'path_utils.dart';
@@ -17,6 +19,7 @@ class RouteConfiguration {
     required this.routes,
     required this.redirectLimit,
     required this.topRedirect,
+    required this.navigatorKey,
   }) {
     _cacheNameToPath('', routes);
 
@@ -25,22 +28,32 @@ class RouteConfiguration {
       return true;
     }());
 
-    for (final GoRoute route in routes) {
-      if (!route.path.startsWith('/')) {
+    for (final RouteBase route in routes) {
+      if (route is GoRoute && !route.path.startsWith('/')) {
         throw RouteConfigurationError(
             'top-level path must start with "/": ${route.path}');
+      } else if (route is ShellRoute) {
+        for (final RouteBase route in routes) {
+          if (route is GoRoute && !route.path.startsWith('/')) {
+            throw RouteConfigurationError(
+                'top-level path must start with "/": ${route.path}');
+          }
+        }
       }
     }
   }
 
   /// The list of top level routes used by [GoRouterDelegate].
-  final List<GoRoute> routes;
+  final List<RouteBase> routes;
 
   /// The limit for the number of consecutive redirects.
   final int redirectLimit;
 
   /// Top level page redirect.
   final GoRouterRedirect topRedirect;
+
+  /// The key to use when building the root [Navigator].
+  final GlobalKey<NavigatorState> navigatorKey;
 
   final Map<String, String> _nameToPath = <String, String>{};
 
@@ -106,30 +119,34 @@ class RouteConfiguration {
     return sb.toString();
   }
 
-  void _debugFullPathsFor(
-      List<GoRoute> routes, String parentFullpath, int depth, StringBuffer sb) {
-    for (final GoRoute route in routes) {
-      final String fullpath = concatenatePaths(parentFullpath, route.path);
-      sb.writeln('  => ${''.padLeft(depth * 2)}$fullpath');
-      _debugFullPathsFor(route.routes, fullpath, depth + 1, sb);
+  void _debugFullPathsFor(List<RouteBase> routes, String parentFullpath,
+      int depth, StringBuffer sb) {
+    for (final RouteBase route in routes) {
+      if (route is GoRoute) {
+        final String fullpath = concatenatePaths(parentFullpath, route.path);
+        sb.writeln('  => ${''.padLeft(depth * 2)}$fullpath');
+        _debugFullPathsFor(route.routes, fullpath, depth + 1, sb);
+      }
     }
   }
 
-  void _cacheNameToPath(String parentFullPath, List<GoRoute> childRoutes) {
-    for (final GoRoute route in childRoutes) {
-      final String fullPath = concatenatePaths(parentFullPath, route.path);
+  void _cacheNameToPath(String parentFullPath, List<RouteBase> childRoutes) {
+    for (final RouteBase route in childRoutes) {
+      if (route is GoRoute) {
+        final String fullPath = concatenatePaths(parentFullPath, route.path);
 
-      if (route.name != null) {
-        final String name = route.name!.toLowerCase();
-        assert(
-            !_nameToPath.containsKey(name),
-            'duplication fullpaths for name '
-            '"$name":${_nameToPath[name]}, $fullPath');
-        _nameToPath[name] = fullPath;
-      }
+        if (route.name != null) {
+          final String name = route.name!.toLowerCase();
+          assert(
+              !_nameToPath.containsKey(name),
+              'duplication fullpaths for name '
+              '"$name":${_nameToPath[name]}, $fullPath');
+          _nameToPath[name] = fullPath;
+        }
 
-      if (route.routes.isNotEmpty) {
-        _cacheNameToPath(fullPath, route.routes);
+        if (route.routes.isNotEmpty) {
+          _cacheNameToPath(fullPath, route.routes);
+        }
       }
     }
   }

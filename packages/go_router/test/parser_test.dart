@@ -28,17 +28,18 @@ void main() {
         routes: routes,
         redirectLimit: 100,
         topRedirect: (_) => null,
+        navigatorKey: GlobalKey<NavigatorState>(),
       ),
     );
 
     RouteMatchList matchesObj = await parser
         .parseRouteInformation(const RouteInformation(location: '/'));
-    List<RouteMatch> matches = matchesObj.matches;
+    List<GoRouteMatch> matches = matchesObj.matches;
     expect(matches.length, 1);
     expect(matches[0].queryParams.isEmpty, isTrue);
     expect(matches[0].extra, isNull);
     expect(matches[0].fullUriString, '/');
-    expect(matches[0].subloc, '/');
+    expect(matches[0].location, '/');
     expect(matches[0].route, routes[0]);
 
     final Object extra = Object();
@@ -50,14 +51,14 @@ void main() {
     expect(matches[0].queryParams['def'], 'ghi');
     expect(matches[0].extra, extra);
     expect(matches[0].fullUriString, '/?def=ghi');
-    expect(matches[0].subloc, '/');
+    expect(matches[0].location, '/');
     expect(matches[0].route, routes[0]);
 
     expect(matches[1].queryParams.length, 1);
     expect(matches[1].queryParams['def'], 'ghi');
     expect(matches[1].extra, extra);
     expect(matches[1].fullUriString, '/abc?def=ghi');
-    expect(matches[1].subloc, '/abc');
+    expect(matches[1].location, '/abc');
     expect(matches[1].route, routes[0].routes[0]);
   });
 
@@ -90,6 +91,7 @@ void main() {
       routes: routes,
       redirectLimit: 100,
       topRedirect: (_) => null,
+      navigatorKey: GlobalKey<NavigatorState>(),
     );
 
     expect(configuration.namedLocation('lowercase'), '/abc');
@@ -132,6 +134,7 @@ void main() {
       routes: routes,
       redirectLimit: 100,
       topRedirect: (_) => null,
+      navigatorKey: GlobalKey<NavigatorState>(),
     );
 
     expect(
@@ -162,17 +165,18 @@ void main() {
         routes: routes,
         redirectLimit: 100,
         topRedirect: (_) => null,
+        navigatorKey: GlobalKey<NavigatorState>(),
       ),
     );
 
     final RouteMatchList matchesObj = await parser
         .parseRouteInformation(const RouteInformation(location: '/def'));
-    final List<RouteMatch> matches = matchesObj.matches;
+    final List<GoRouteMatch> matches = matchesObj.matches;
     expect(matches.length, 1);
     expect(matches[0].queryParams.isEmpty, isTrue);
     expect(matches[0].extra, isNull);
     expect(matches[0].fullUriString, '/def');
-    expect(matches[0].subloc, '/def');
+    expect(matches[0].location, '/def');
     expect(matches[0].error!.toString(),
         'Exception: no routes for location: /def');
   });
@@ -195,23 +199,24 @@ void main() {
         routes: routes,
         redirectLimit: 100,
         topRedirect: (_) => null,
+        navigatorKey: GlobalKey<NavigatorState>(),
       ),
     );
 
     final RouteMatchList matchesObj = await parser.parseRouteInformation(
         const RouteInformation(location: '/123/family/456'));
-    final List<RouteMatch> matches = matchesObj.matches;
+    final List<GoRouteMatch> matches = matchesObj.matches;
 
     expect(matches.length, 2);
     expect(matches[0].queryParams.isEmpty, isTrue);
     expect(matches[0].extra, isNull);
     expect(matches[0].fullUriString, '/');
-    expect(matches[0].subloc, '/');
+    expect(matches[0].location, '/');
 
     expect(matches[1].queryParams.isEmpty, isTrue);
     expect(matches[1].extra, isNull);
     expect(matches[1].fullUriString, '/123/family/456');
-    expect(matches[1].subloc, '/123/family/456');
+    expect(matches[1].location, '/123/family/456');
     expect(matches[1].encodedParams.length, 2);
     expect(matches[1].encodedParams['uid'], '123');
     expect(matches[1].encodedParams['fid'], '456');
@@ -242,19 +247,20 @@ void main() {
           }
           return null;
         },
+        navigatorKey: GlobalKey<NavigatorState>(),
       ),
     );
 
     final RouteMatchList matchesObj = await parser
         .parseRouteInformation(const RouteInformation(location: '/random/uri'));
-    final List<RouteMatch> matches = matchesObj.matches;
+    final List<GoRouteMatch> matches = matchesObj.matches;
 
     expect(matches.length, 2);
     expect(matches[0].fullUriString, '/');
-    expect(matches[0].subloc, '/');
+    expect(matches[0].location, '/');
 
     expect(matches[1].fullUriString, '/123/family/345');
-    expect(matches[1].subloc, '/123/family/345');
+    expect(matches[1].location, '/123/family/345');
   });
 
   test(
@@ -282,19 +288,20 @@ void main() {
         routes: routes,
         redirectLimit: 100,
         topRedirect: (_) => null,
+        navigatorKey: GlobalKey<NavigatorState>(),
       ),
     );
 
     final RouteMatchList matchesObj = await parser
         .parseRouteInformation(const RouteInformation(location: '/redirect'));
-    final List<RouteMatch> matches = matchesObj.matches;
+    final List<GoRouteMatch> matches = matchesObj.matches;
 
     expect(matches.length, 2);
     expect(matches[0].fullUriString, '/');
-    expect(matches[0].subloc, '/');
+    expect(matches[0].location, '/');
 
     expect(matches[1].fullUriString, '/123/family/345');
-    expect(matches[1].subloc, '/123/family/345');
+    expect(matches[1].location, '/123/family/345');
   });
 
   test('GoRouteInformationParser throws an exception when route is malformed',
@@ -310,6 +317,7 @@ void main() {
         routes: routes,
         redirectLimit: 100,
         topRedirect: (_) => null,
+        navigatorKey: GlobalKey<NavigatorState>(),
       ),
     );
 
@@ -333,14 +341,60 @@ void main() {
         routes: routes,
         redirectLimit: 5,
         topRedirect: (_) => null,
+        navigatorKey: GlobalKey<NavigatorState>(),
       ),
     );
 
     final RouteMatchList matchesObj = await parser
         .parseRouteInformation(const RouteInformation(location: '/abd'));
-    final List<RouteMatch> matches = matchesObj.matches;
+    final List<GoRouteMatch> matches = matchesObj.matches;
 
     expect(matches, hasLength(1));
     expect(matches.first.error, isNotNull);
+  });
+
+  test('Creates a match for ShellRoute', () async {
+    final List<RouteBase> routes = <RouteBase>[
+      ShellRoute(
+        builder: (BuildContext context, GoRouterState state, Widget child) {
+          return Scaffold(
+            body: child,
+          );
+        },
+        routes: <RouteBase>[
+          GoRoute(
+            path: '/a',
+            builder: (BuildContext context, GoRouterState state) {
+              return const Scaffold(
+                body: Text('Screen A'),
+              );
+            },
+          ),
+          GoRoute(
+            path: '/b',
+            builder: (BuildContext context, GoRouterState state) {
+              return const Scaffold(
+                body: Text('Screen B'),
+              );
+            },
+          ),
+        ],
+      ),
+    ];
+    final GoRouteInformationParser parser = GoRouteInformationParser(
+      configuration: RouteConfiguration(
+        routes: routes,
+        redirectLimit: 5,
+        topRedirect: (_) => null,
+        navigatorKey: GlobalKey<NavigatorState>(),
+      ),
+    );
+
+    final RouteMatchList matchesObj = await parser
+        .parseRouteInformation(const RouteInformation(location: '/a'));
+    final List<GoRouteMatch> matches = matchesObj.matches;
+
+    expect(matches, hasLength(2));
+    expect(matches.first.error, isNull);
   });
 }

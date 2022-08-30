@@ -8,9 +8,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
 import 'package:go_router/src/delegate.dart';
 import 'package:go_router/src/match.dart';
+import 'package:go_router/src/misc/extensions.dart';
+import 'package:go_router/src/route.dart';
+import 'package:go_router/src/router.dart';
+import 'package:go_router/src/state.dart';
 import 'package:logging/logging.dart';
 
 import 'test_helpers.dart';
@@ -33,9 +36,9 @@ void main() {
       ];
 
       final GoRouter router = await createRouter(routes, tester);
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
-      expect(matches.first.fullpath, '/');
+      expect(matches.first.template, '/');
       expect(router.screenFor(matches.first).runtimeType, HomeScreen);
     });
 
@@ -48,9 +51,9 @@ void main() {
 
       final GoRouter router = await createRouter(routes, tester);
       router.go('/');
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
-      expect(matches.first.fullpath, '/');
+      expect(matches.first.template, '/');
       expect(router.screenFor(matches.first).runtimeType, DummyScreen);
     });
 
@@ -108,7 +111,7 @@ void main() {
       final GoRouter router = await createRouter(routes, tester);
       router.go('/foo');
       await tester.pumpAndSettle();
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
       expect(router.screenFor(matches.first).runtimeType, TestErrorScreen);
     });
@@ -127,9 +130,9 @@ void main() {
 
       final GoRouter router = await createRouter(routes, tester);
       router.go('/login');
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
-      expect(matches.first.subloc, '/login');
+      expect(matches.first.location, '/login');
       expect(router.screenFor(matches.first).runtimeType, LoginScreen);
     });
 
@@ -155,9 +158,9 @@ void main() {
 
       final GoRouter router = await createRouter(routes, tester);
       router.go('/login');
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
-      expect(matches.first.subloc, '/login');
+      expect(matches.first.location, '/login');
       expect(router.screenFor(matches.first).runtimeType, LoginScreen);
     });
 
@@ -178,39 +181,41 @@ void main() {
 
       final GoRouter router = await createRouter(routes, tester);
       router.go('/login/');
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
-      expect(matches.first.subloc, '/login');
+      expect(matches.first.location, '/login');
       expect(router.screenFor(matches.first).runtimeType, LoginScreen);
     });
 
     testWidgets('match top level route when location has trailing / (2)',
         (WidgetTester tester) async {
       final List<GoRoute> routes = <GoRoute>[
-        GoRoute(path: '/profile', redirect: (_) => '/profile/foo'),
+        GoRoute(
+            path: '/profile', builder: dummy, redirect: (_) => '/profile/foo'),
         GoRoute(path: '/profile/:kind', builder: dummy),
       ];
 
       final GoRouter router = await createRouter(routes, tester);
       router.go('/profile/');
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
-      expect(matches.first.subloc, '/profile/foo');
+      expect(matches.first.location, '/profile/foo');
       expect(router.screenFor(matches.first).runtimeType, DummyScreen);
     });
 
     testWidgets('match top level route when location has trailing / (3)',
         (WidgetTester tester) async {
       final List<GoRoute> routes = <GoRoute>[
-        GoRoute(path: '/profile', redirect: (_) => '/profile/foo'),
+        GoRoute(
+            path: '/profile', builder: dummy, redirect: (_) => '/profile/foo'),
         GoRoute(path: '/profile/:kind', builder: dummy),
       ];
 
       final GoRouter router = await createRouter(routes, tester);
       router.go('/profile/?bar=baz');
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
-      expect(matches.first.subloc, '/profile/foo');
+      expect(matches.first.location, '/profile/foo');
       expect(router.screenFor(matches.first).runtimeType, DummyScreen);
     });
 
@@ -232,11 +237,11 @@ void main() {
 
       final GoRouter router = await createRouter(routes, tester);
       router.go('/login');
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches.length, 2);
-      expect(matches.first.subloc, '/');
+      expect(matches.first.location, '/');
       expect(router.screenFor(matches.first).runtimeType, HomeScreen);
-      expect(matches[1].subloc, '/login');
+      expect(matches[1].location, '/login');
       expect(router.screenFor(matches[1]).runtimeType, LoginScreen);
     });
 
@@ -270,41 +275,45 @@ void main() {
 
       final GoRouter router = await createRouter(routes, tester);
       {
-        final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+        final List<GoRouteMatch> matches =
+            router.routerDelegate.matches.matches;
         expect(matches, hasLength(1));
-        expect(matches.first.fullpath, '/');
+        expect(matches.first.template, '/');
         expect(router.screenFor(matches.first).runtimeType, HomeScreen);
       }
 
       router.go('/login');
       {
-        final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+        final List<GoRouteMatch> matches =
+            router.routerDelegate.matches.matches;
         expect(matches.length, 2);
-        expect(matches.first.subloc, '/');
+        expect(matches.first.location, '/');
         expect(router.screenFor(matches.first).runtimeType, HomeScreen);
-        expect(matches[1].subloc, '/login');
+        expect(matches[1].location, '/login');
         expect(router.screenFor(matches[1]).runtimeType, LoginScreen);
       }
 
       router.go('/family/f2');
       {
-        final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+        final List<GoRouteMatch> matches =
+            router.routerDelegate.matches.matches;
         expect(matches.length, 2);
-        expect(matches.first.subloc, '/');
+        expect(matches.first.location, '/');
         expect(router.screenFor(matches.first).runtimeType, HomeScreen);
-        expect(matches[1].subloc, '/family/f2');
+        expect(matches[1].location, '/family/f2');
         expect(router.screenFor(matches[1]).runtimeType, FamilyScreen);
       }
 
       router.go('/family/f2/person/p1');
       {
-        final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+        final List<GoRouteMatch> matches =
+            router.routerDelegate.matches.matches;
         expect(matches.length, 3);
-        expect(matches.first.subloc, '/');
+        expect(matches.first.location, '/');
         expect(router.screenFor(matches.first).runtimeType, HomeScreen);
-        expect(matches[1].subloc, '/family/f2');
+        expect(matches[1].location, '/family/f2');
         expect(router.screenFor(matches[1]).runtimeType, FamilyScreen);
-        expect(matches[2].subloc, '/family/f2/person/p1');
+        expect(matches[2].location, '/family/f2/person/p1');
         expect(router.screenFor(matches[2]).runtimeType, PersonScreen);
       }
     });
@@ -345,7 +354,7 @@ void main() {
 
       final GoRouter router = await createRouter(routes, tester);
       router.go('/bar');
-      List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(2));
       expect(router.screenFor(matches[1]).runtimeType, Page1Screen);
 
@@ -465,7 +474,7 @@ void main() {
       final GoRouter router = await createRouter(routes, tester);
       const String loc = '/FaMiLy/f2';
       router.go(loc);
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
 
       // NOTE: match the lower case, since subloc is canonicalized to match the
       // path case whereas the location can be any case; so long as the path
@@ -488,9 +497,42 @@ void main() {
 
       final GoRouter router = await createRouter(routes, tester);
       router.go('/user');
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
       expect(router.screenFor(matches.first).runtimeType, DummyScreen);
+    });
+
+    testWidgets('Handles the Android back button correctly',
+        (WidgetTester tester) async {
+      final List<RouteBase> routes = <RouteBase>[
+        GoRoute(
+          path: '/',
+          builder: (BuildContext context, GoRouterState state) {
+            return const Scaffold(
+              body: Text('Screen A'),
+            );
+          },
+          routes: <RouteBase>[
+            GoRoute(
+              path: 'b',
+              builder: (BuildContext context, GoRouterState state) {
+                return const Scaffold(
+                  body: Text('Screen B'),
+                );
+              },
+            ),
+          ],
+        ),
+      ];
+
+      await createRouter(routes, tester, initialLocation: '/b');
+      expect(find.text('Screen A'), findsNothing);
+      expect(find.text('Screen B'), findsOneWidget);
+
+      await simulateAndroidBackButton();
+      await tester.pumpAndSettle();
+      expect(find.text('Screen A'), findsOneWidget);
+      expect(find.text('Screen B'), findsNothing);
     });
   });
 
@@ -713,6 +755,7 @@ void main() {
       final List<GoRoute> routes = <GoRoute>[
         GoRoute(
           path: '/',
+          builder: dummy,
           redirect: (_) => '/family/f2',
         ),
         GoRoute(
@@ -738,7 +781,7 @@ void main() {
       router.goNamed('person',
           params: <String, String>{'fid': 'f2', 'pid': 'p1'});
 
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(router.screenFor(matches.last).runtimeType, PersonScreen);
     });
 
@@ -762,7 +805,7 @@ void main() {
       log.info('loc= $loc');
       router.go(loc);
 
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       log.info('param1= ${matches.first.decodedParams['param1']}');
       expect(router.screenFor(matches.first).runtimeType, DummyScreen);
       expect(matches.first.decodedParams['param1'], param1);
@@ -787,7 +830,7 @@ void main() {
           queryParams: <String, String>{'param1': param1});
       router.go(loc);
       await tester.pump();
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(router.screenFor(matches.first).runtimeType, DummyScreen);
       expect(matches.first.queryParams['param1'], param1);
     });
@@ -952,7 +995,7 @@ void main() {
                   ? '/'
                   : null);
 
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
       expect(router.screenFor(matches.first).runtimeType, TestErrorScreen);
       expect(
@@ -965,17 +1008,19 @@ void main() {
         <GoRoute>[
           GoRoute(
             path: '/',
+            builder: dummy,
             redirect: (GoRouterState state) => '/login',
           ),
           GoRoute(
             path: '/login',
+            builder: dummy,
             redirect: (GoRouterState state) => '/',
           ),
         ],
         tester,
       );
 
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
       expect(router.screenFor(matches.first).runtimeType, TestErrorScreen);
       expect(
@@ -988,6 +1033,7 @@ void main() {
         <GoRoute>[
           GoRoute(
             path: '/login',
+            builder: dummy,
             redirect: (GoRouterState state) => '/',
           ),
         ],
@@ -996,7 +1042,7 @@ void main() {
             state.subloc == '/' ? '/login' : null,
       );
 
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
       expect(router.screenFor(matches.first).runtimeType, TestErrorScreen);
       expect(
@@ -1016,7 +1062,7 @@ void main() {
                 : null,
       );
 
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
       expect(router.screenFor(matches.first).runtimeType, TestErrorScreen);
       expect(
@@ -1034,6 +1080,7 @@ void main() {
         ),
         GoRoute(
           path: '/dummy',
+          builder: dummy,
           redirect: (GoRouterState state) => '/',
         ),
       ];
@@ -1076,7 +1123,7 @@ void main() {
         },
       );
 
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
       expect(router.screenFor(matches.first).runtimeType, LoginScreen);
     });
@@ -1105,7 +1152,7 @@ void main() {
         initialLocation: loc,
       );
 
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
       expect(router.screenFor(matches.first).runtimeType, HomeScreen);
     });
@@ -1146,7 +1193,7 @@ void main() {
         initialLocation: '/family/f2/person/p1',
       );
 
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches.length, 3);
       expect(router.screenFor(matches.first).runtimeType, HomeScreen);
       expect(router.screenFor(matches[1]).runtimeType, FamilyScreen);
@@ -1163,7 +1210,7 @@ void main() {
         redirectLimit: 10,
       );
 
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
       expect(router.screenFor(matches.first).runtimeType, TestErrorScreen);
       expect(
@@ -1193,7 +1240,7 @@ void main() {
                 expect(state.extra, isNotNull);
                 return null;
               },
-              routes: <GoRoute>[],
+              routes: const <GoRoute>[],
             ),
           ],
         ),
@@ -1254,6 +1301,7 @@ void main() {
         ),
         GoRoute(
           path: '/dummy',
+          builder: dummy,
           redirect: (GoRouterState state) => '/',
         ),
       ];
@@ -1316,7 +1364,8 @@ void main() {
       for (final String fid in <String>['f2', 'F2']) {
         final String loc = '/family/$fid';
         router.go(loc);
-        final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+        final List<GoRouteMatch> matches =
+            router.routerDelegate.matches.matches;
 
         expect(router.location, loc);
         expect(matches, hasLength(1));
@@ -1344,7 +1393,8 @@ void main() {
       for (final String fid in <String>['f2', 'F2']) {
         final String loc = '/family?fid=$fid';
         router.go(loc);
-        final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+        final List<GoRouteMatch> matches =
+            router.routerDelegate.matches.matches;
 
         expect(router.location, loc);
         expect(matches, hasLength(1));
@@ -1370,7 +1420,7 @@ void main() {
       final String loc = '/page1/${Uri.encodeComponent(param1)}';
       router.go(loc);
 
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       log.info('param1= ${matches.first.decodedParams['param1']}');
       expect(router.screenFor(matches.first).runtimeType, DummyScreen);
       expect(matches.first.decodedParams['param1'], param1);
@@ -1392,14 +1442,14 @@ void main() {
       final GoRouter router = await createRouter(routes, tester);
       router.go('/page1?param1=$param1');
 
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(router.screenFor(matches.first).runtimeType, DummyScreen);
       expect(matches.first.queryParams['param1'], param1);
 
       final String loc = '/page1?param1=${Uri.encodeQueryComponent(param1)}';
       router.go(loc);
 
-      final List<RouteMatch> matches2 = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches2 = router.routerDelegate.matches.matches;
       expect(router.screenFor(matches2[0]).runtimeType, DummyScreen);
       expect(matches2[0].queryParams['param1'], param1);
     });
@@ -1440,9 +1490,9 @@ void main() {
         tester,
         initialLocation: '/?id=0&id=1',
       );
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
-      expect(matches.first.fullpath, '/');
+      expect(matches.first.template, '/');
       expect(router.screenFor(matches.first).runtimeType, HomeScreen);
     });
 
@@ -1463,9 +1513,9 @@ void main() {
 
       router.go('/0?id=1');
       await tester.pump();
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
       expect(matches, hasLength(1));
-      expect(matches.first.fullpath, '/:id');
+      expect(matches.first.template, '/:id');
       expect(router.screenFor(matches.first).runtimeType, HomeScreen);
     });
 
@@ -1577,7 +1627,7 @@ void main() {
 
       router.push(loc);
       await tester.pump();
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
 
       expect(router.location, loc);
       expect(matches, hasLength(2));
@@ -1624,7 +1674,7 @@ void main() {
         'q2': <String>['v2', 'v3'],
       });
       await tester.pump();
-      final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+      final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
 
       expect(matches, hasLength(1));
       expectLocationWithQueryParams(router.location);
@@ -1674,7 +1724,7 @@ void main() {
 
     router.go('/page?q1=v1&q2=v2&q2=v3');
     await tester.pump();
-    final List<RouteMatch> matches = router.routerDelegate.matches.matches;
+    final List<GoRouteMatch> matches = router.routerDelegate.matches.matches;
 
     expect(matches, hasLength(1));
     expectLocationWithQueryParams(router.location);
@@ -1884,53 +1934,378 @@ void main() {
     });
   });
 
-  testWidgets('pop triggers pop on routerDelegate',
-      (WidgetTester tester) async {
-    final GoRouter router = await createGoRouter(tester)
-      ..push('/error');
-    router.routerDelegate.addListener(expectAsync0(() {}));
-    router.pop();
-    await tester.pump();
-  });
-
-  testWidgets('didPush notifies listeners', (WidgetTester tester) async {
-    await createGoRouter(tester)
-      ..addListener(expectAsync0(() {}))
-      ..didPush(
-        MaterialPageRoute<void>(builder: (_) => const Text('Current route')),
-        MaterialPageRoute<void>(builder: (_) => const Text('Previous route')),
-      );
-  });
-
-  testWidgets('didPop notifies listeners', (WidgetTester tester) async {
-    await createGoRouter(tester)
-      ..addListener(expectAsync0(() {}))
-      ..didPop(
-        MaterialPageRoute<void>(builder: (_) => const Text('Current route')),
-        MaterialPageRoute<void>(builder: (_) => const Text('Previous route')),
-      );
-  });
-
-  testWidgets('didRemove notifies listeners', (WidgetTester tester) async {
-    await createGoRouter(tester)
-      ..addListener(expectAsync0(() {}))
-      ..didRemove(
-        MaterialPageRoute<void>(builder: (_) => const Text('Current route')),
-        MaterialPageRoute<void>(builder: (_) => const Text('Previous route')),
-      );
-  });
-
-  testWidgets('didReplace notifies listeners', (WidgetTester tester) async {
-    await createGoRouter(tester)
-      ..addListener(expectAsync0(() {}))
-      ..didReplace(
-        newRoute: MaterialPageRoute<void>(
-          builder: (_) => const Text('Current route'),
+  group('ShellRoute', () {
+    testWidgets('defaultRoute', (WidgetTester tester) async {
+      final List<RouteBase> routes = <RouteBase>[
+        ShellRoute(
+          builder: (BuildContext context, GoRouterState state, Widget child) {
+            return Scaffold(
+              body: child,
+            );
+          },
+          routes: <RouteBase>[
+            GoRoute(
+              path: '/a',
+              builder: (BuildContext context, GoRouterState state) {
+                return const Scaffold(
+                  body: Text('Screen A'),
+                );
+              },
+            ),
+            GoRoute(
+              path: '/b',
+              builder: (BuildContext context, GoRouterState state) {
+                return const Scaffold(
+                  body: Text('Screen B'),
+                );
+              },
+            ),
+          ],
         ),
-        oldRoute: MaterialPageRoute<void>(
-          builder: (_) => const Text('Previous route'),
+      ];
+
+      await createRouter(routes, tester, initialLocation: '/b');
+      expect(find.text('Screen B'), findsOneWidget);
+    });
+
+    testWidgets(
+        'Pops from the correct Navigator when the Android back button is pressed',
+        (WidgetTester tester) async {
+      final List<RouteBase> routes = <RouteBase>[
+        ShellRoute(
+          builder: (BuildContext context, GoRouterState state, Widget child) {
+            return Scaffold(
+              body: Column(
+                children: <Widget>[
+                  const Text('Screen A'),
+                  Expanded(child: child),
+                ],
+              ),
+            );
+          },
+          routes: <RouteBase>[
+            GoRoute(
+              path: '/b',
+              builder: (BuildContext context, GoRouterState state) {
+                return const Scaffold(
+                  body: Text('Screen B'),
+                );
+              },
+              routes: <RouteBase>[
+                GoRoute(
+                  path: 'c',
+                  builder: (BuildContext context, GoRouterState state) {
+                    return const Scaffold(
+                      body: Text('Screen C'),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ],
         ),
+      ];
+
+      await createRouter(routes, tester, initialLocation: '/b/c');
+      expect(find.text('Screen A'), findsOneWidget);
+      expect(find.text('Screen B'), findsNothing);
+      expect(find.text('Screen C'), findsOneWidget);
+
+      await simulateAndroidBackButton();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Screen A'), findsOneWidget);
+      expect(find.text('Screen B'), findsOneWidget);
+      expect(find.text('Screen C'), findsNothing);
+    });
+
+    testWidgets(
+        'Pops from the correct navigator when a sub-route is placed on '
+        'the root Navigator', (WidgetTester tester) async {
+      final GlobalKey<NavigatorState> rootNavigatorKey =
+          GlobalKey<NavigatorState>();
+      final GlobalKey<NavigatorState> shellNavigatorKey =
+          GlobalKey<NavigatorState>();
+
+      final List<RouteBase> routes = <RouteBase>[
+        ShellRoute(
+          navigatorKey: shellNavigatorKey,
+          builder: (BuildContext context, GoRouterState state, Widget child) {
+            return Scaffold(
+              body: Column(
+                children: <Widget>[
+                  const Text('Screen A'),
+                  Expanded(child: child),
+                ],
+              ),
+            );
+          },
+          routes: <RouteBase>[
+            GoRoute(
+              path: '/b',
+              builder: (BuildContext context, GoRouterState state) {
+                return const Scaffold(
+                  body: Text('Screen B'),
+                );
+              },
+              routes: <RouteBase>[
+                GoRoute(
+                  path: 'c',
+                  parentNavigatorKey: rootNavigatorKey,
+                  builder: (BuildContext context, GoRouterState state) {
+                    return const Scaffold(
+                      body: Text('Screen C'),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ];
+
+      await createRouter(routes, tester,
+          initialLocation: '/b/c', navigatorKey: rootNavigatorKey);
+      expect(find.text('Screen A'), findsNothing);
+      expect(find.text('Screen B'), findsNothing);
+      expect(find.text('Screen C'), findsOneWidget);
+
+      await simulateAndroidBackButton();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Screen A'), findsOneWidget);
+      expect(find.text('Screen B'), findsOneWidget);
+      expect(find.text('Screen C'), findsNothing);
+    });
+  });
+
+  group('Imperative navigation', () {
+    testWidgets('pop triggers pop on routerDelegate',
+        (WidgetTester tester) async {
+      final GoRouter router = await createGoRouter(tester)
+        ..push('/error');
+      router.routerDelegate.addListener(expectAsync0(() {}));
+      router.pop();
+      await tester.pump();
+    });
+
+    testWidgets('didPush notifies listeners', (WidgetTester tester) async {
+      await createGoRouter(tester)
+        ..addListener(expectAsync0(() {}))
+        ..didPush(
+          MaterialPageRoute<void>(builder: (_) => const Text('Current route')),
+          MaterialPageRoute<void>(builder: (_) => const Text('Previous route')),
+        );
+    });
+
+    testWidgets('didPop notifies listeners', (WidgetTester tester) async {
+      await createGoRouter(tester)
+        ..addListener(expectAsync0(() {}))
+        ..didPop(
+          MaterialPageRoute<void>(builder: (_) => const Text('Current route')),
+          MaterialPageRoute<void>(builder: (_) => const Text('Previous route')),
+        );
+    });
+
+    testWidgets('didRemove notifies listeners', (WidgetTester tester) async {
+      await createGoRouter(tester)
+        ..addListener(expectAsync0(() {}))
+        ..didRemove(
+          MaterialPageRoute<void>(builder: (_) => const Text('Current route')),
+          MaterialPageRoute<void>(builder: (_) => const Text('Previous route')),
+        );
+    });
+
+    testWidgets('didReplace notifies listeners', (WidgetTester tester) async {
+      await createGoRouter(tester)
+        ..addListener(expectAsync0(() {}))
+        ..didReplace(
+          newRoute: MaterialPageRoute<void>(
+            builder: (_) => const Text('Current route'),
+          ),
+          oldRoute: MaterialPageRoute<void>(
+            builder: (_) => const Text('Previous route'),
+          ),
+        );
+    });
+
+    group('canPop', () {
+      testWidgets(
+        'It should return false if Navigator.canPop() returns false.',
+        (WidgetTester tester) async {
+          final GlobalKey<NavigatorState> navigatorKey =
+              GlobalKey<NavigatorState>();
+          final GoRouter router = GoRouter(
+            initialLocation: '/',
+            navigatorKey: navigatorKey,
+            routes: <GoRoute>[
+              GoRoute(
+                path: '/',
+                builder: (BuildContext context, _) {
+                  return Scaffold(
+                    body: TextButton(
+                      onPressed: () async {
+                        navigatorKey.currentState!.push(
+                          MaterialPageRoute<void>(
+                            builder: (BuildContext context) {
+                              return const Scaffold(
+                                body: Text('pageless route'),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                      child: const Text('Push'),
+                    ),
+                  );
+                },
+              ),
+              GoRoute(path: '/a', builder: (_, __) => const DummyScreen()),
+            ],
+          );
+
+          await tester.pumpWidget(
+            MaterialApp.router(
+                routeInformationProvider: router.routeInformationProvider,
+                routeInformationParser: router.routeInformationParser,
+                routerDelegate: router.routerDelegate),
+          );
+
+          expect(router.canPop(), false);
+
+          await tester.tap(find.text('Push'));
+          await tester.pumpAndSettle();
+
+          expect(
+              find.text('pageless route', skipOffstage: false), findsOneWidget);
+          expect(router.canPop(), true);
+        },
       );
+
+      testWidgets(
+        'It checks if ShellRoute navigators can pop',
+        (WidgetTester tester) async {
+          final GlobalKey<NavigatorState> shellNavigatorKey =
+              GlobalKey<NavigatorState>();
+          final GoRouter router = GoRouter(
+            initialLocation: '/a',
+            routes: <RouteBase>[
+              ShellRoute(
+                navigatorKey: shellNavigatorKey,
+                builder:
+                    (BuildContext context, GoRouterState state, Widget child) {
+                  return Scaffold(
+                    appBar: AppBar(title: const Text('Shell')),
+                    body: child,
+                  );
+                },
+                routes: <GoRoute>[
+                  GoRoute(
+                    path: '/a',
+                    builder: (BuildContext context, _) {
+                      return Scaffold(
+                        body: TextButton(
+                          onPressed: () async {
+                            shellNavigatorKey.currentState!.push(
+                              MaterialPageRoute<void>(
+                                builder: (BuildContext context) {
+                                  return const Scaffold(
+                                    body: Text('pageless route'),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                          child: const Text('Push'),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          );
+
+          await tester.pumpWidget(
+            MaterialApp.router(
+                routeInformationProvider: router.routeInformationProvider,
+                routeInformationParser: router.routeInformationParser,
+                routerDelegate: router.routerDelegate),
+          );
+
+          expect(router.canPop(), false);
+          expect(find.text('Push'), findsOneWidget);
+
+          await tester.tap(find.text('Push'));
+          await tester.pumpAndSettle();
+
+          expect(
+              find.text('pageless route', skipOffstage: false), findsOneWidget);
+          expect(router.canPop(), true);
+        },
+      );
+    });
+    group('pop', () {
+      testWidgets(
+        'Should pop ShellRoute if it only has one child match',
+        (WidgetTester tester) async {
+          final GlobalKey<NavigatorState> navigatorKey =
+              GlobalKey<NavigatorState>();
+          final GoRouter router = GoRouter(
+            initialLocation: '/a',
+            navigatorKey: navigatorKey,
+            routes: <GoRoute>[
+              GoRoute(
+                path: '/',
+                builder: (BuildContext context, _) {
+                  return const Scaffold(
+                    body: Text('Home'),
+                  );
+                },
+                routes: <RouteBase>[
+                  ShellRoute(
+                    builder: (BuildContext context, GoRouterState state,
+                        Widget child) {
+                      return Scaffold(
+                        body: Center(
+                          child: Column(
+                            children: <Widget>[
+                              const Text('Shell'),
+                              Expanded(child: child),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                    routes: <RouteBase>[
+                      GoRoute(
+                        path: 'a',
+                        builder: (_, __) => const Text('A Screen'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          );
+
+          await tester.pumpWidget(
+            MaterialApp.router(
+                routeInformationProvider: router.routeInformationProvider,
+                routeInformationParser: router.routeInformationParser,
+                routerDelegate: router.routerDelegate),
+          );
+
+          expect(router.canPop(), isTrue);
+          expect(find.text('A Screen'), findsOneWidget);
+          router.pop();
+          await tester.pumpAndSettle();
+          expect(find.text('A Screen'), findsNothing);
+          expect(find.text('Shell'), findsNothing);
+          expect(find.text('Home'), findsOneWidget);
+        },
+      );
+    });
   });
 
   testWidgets('uses navigatorBuilder when provided',
