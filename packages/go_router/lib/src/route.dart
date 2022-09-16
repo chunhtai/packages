@@ -333,7 +333,8 @@ class GoRoute extends RouteBase {
   Map<String, String> extractPathParams(RegExpMatch match) =>
       extractPathParameters(_pathParams, match);
 
-  static String? _emptyRedirect(BuildContext context, GoRouterState state) => null;
+  static String? _emptyRedirect(BuildContext context, GoRouterState state) =>
+      null;
 
   final List<String> _pathParams = <String>[];
 
