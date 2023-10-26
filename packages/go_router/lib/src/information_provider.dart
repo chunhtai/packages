@@ -4,11 +4,12 @@
 
 import 'dart:async';
 
-import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:meta/meta.dart';
 
+import '../go_router.dart';
 import 'match.dart';
 
 // TODO(chunhtai): remove this ignore and migrate the code
@@ -46,7 +47,7 @@ enum NavigatingType {
 /// the engine.
 class RouteInformationState<T> {
   /// Creates an InternalRouteInformationState.
-  @visibleForTesting
+  @internal
   RouteInformationState({
     this.extra,
     this.completer,
@@ -82,6 +83,7 @@ class GoRouteInformationProvider extends RouteInformationProvider
   GoRouteInformationProvider({
     required String initialLocation,
     required Object? initialExtra,
+    required RouteConfiguration configuration,
     Listenable? refreshListenable,
   })  : _refreshListenable = refreshListenable,
         _value = RouteInformation(
@@ -89,11 +91,13 @@ class GoRouteInformationProvider extends RouteInformationProvider
           state: RouteInformationState<void>(
               extra: initialExtra, type: NavigatingType.go),
         ),
-        _valueInEngine = _kEmptyRouteInformation {
+        _valueInEngine = _kEmptyRouteInformation,
+        _routeMatchListCodec = RouteMatchListCodec(configuration) {
     _refreshListenable?.addListener(notifyListeners);
   }
 
   final Listenable? _refreshListenable;
+  final RouteMatchListCodec _routeMatchListCodec;
 
   static WidgetsBinding get _binding => WidgetsBinding.instance;
   static const RouteInformation _kEmptyRouteInformation =
@@ -103,15 +107,12 @@ class GoRouteInformationProvider extends RouteInformationProvider
   void routerReportsNewRouteInformation(RouteInformation routeInformation,
       {RouteInformationReportingType type =
           RouteInformationReportingType.none}) {
-    // GoRouteInformationParser should always report encoded route match list
-    // in the state.
     assert(routeInformation.state != null);
     final bool replace;
     switch (type) {
       case RouteInformationReportingType.none:
         if (_valueInEngine.location == routeInformation.location &&
-            const DeepCollectionEquality()
-                .equals(_valueInEngine.state, routeInformation.state)) {
+            _valueInEngine.state == routeInformation.state) {
           return;
         }
         replace = _valueInEngine == _kEmptyRouteInformation;
@@ -129,7 +130,8 @@ class GoRouteInformationProvider extends RouteInformationProvider
       // https://github.com/flutter/flutter/issues/124045.
       // ignore: unnecessary_null_checks, unnecessary_non_null_assertion
       location: routeInformation.location!,
-      state: routeInformation.state,
+      state: _routeMatchListCodec
+          .encode(routeInformation.state! as RouteMatchList),
       replace: replace,
     );
     _value = _valueInEngine = routeInformation;
@@ -231,11 +233,13 @@ class GoRouteInformationProvider extends RouteInformationProvider
   RouteInformation _valueInEngine;
 
   void _platformReportsNewRouteInformation(RouteInformation routeInformation) {
-    if (_value == routeInformation) {
-      return;
-    }
     if (routeInformation.state != null) {
-      _value = _valueInEngine = routeInformation;
+      final RouteInformation decoded = RouteInformation(
+        location: routeInformation.location,
+        state: _routeMatchListCodec
+            .decode(routeInformation.state! as Map<Object?, Object?>),
+      );
+      _value = _valueInEngine = decoded;
     } else {
       _value = RouteInformation(
         location: routeInformation.location,

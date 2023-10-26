@@ -34,7 +34,7 @@ class GoRouteInformationParser extends RouteInformationParser<RouteMatchList> {
   GoRouteInformationParser({
     required this.configuration,
     required this.onParserException,
-  }) : _routeMatchListCodec = RouteMatchListCodec(configuration);
+  });
 
   /// The route configuration used for parsing [RouteInformation]s.
   final RouteConfiguration configuration;
@@ -44,8 +44,6 @@ class GoRouteInformationParser extends RouteInformationParser<RouteMatchList> {
   ///
   /// This method must return a [RouteMatchList] for the parsed result.
   final ParserExceptionHandler? onParserException;
-
-  final RouteMatchListCodec _routeMatchListCodec;
 
   final Random _random = Random();
 
@@ -63,20 +61,24 @@ class GoRouteInformationParser extends RouteInformationParser<RouteMatchList> {
   ) {
     assert(routeInformation.state != null);
     final Object state = routeInformation.state!;
-
-    if (state is! RouteInformationState) {
+    final RouteInformationState<Object?> routeInformationState;
+    if (state is RouteMatchList) {
       // This is a result of browser backward/forward button or state
-      // restoration. In this case, the route match list is already stored in
-      // the state.
-      final RouteMatchList matchList =
-          _routeMatchListCodec.decode(state as Map<Object?, Object?>);
-      return debugParserFuture = _redirect(context, matchList)
+      // restoration.
+      routeInformationState = RouteInformationState<void>(
+        type: NavigatingType.restore,
+        extra: state.extra,
+        baseRouteMatchList: state,
+      );
+      return debugParserFuture = _redirect(context, state)
           .then<RouteMatchList>((RouteMatchList value) {
         if (value.isError && onParserException != null) {
           return onParserException!(context, value);
         }
         return value;
       });
+    } else {
+      routeInformationState = state as RouteInformationState<Object?>;
     }
 
     late final RouteMatchList initialMatches;
@@ -84,7 +86,8 @@ class GoRouteInformationParser extends RouteInformationParser<RouteMatchList> {
         // TODO(chunhtai): remove this ignore and migrate the code
         // https://github.com/flutter/flutter/issues/124045.
         // ignore: deprecated_member_use, unnecessary_non_null_assertion
-        configuration.findMatch(routeInformation.location!, extra: state.extra);
+        configuration.findMatch(routeInformation.location!,
+            extra: routeInformationState.extra);
     if (initialMatches.isError) {
       // TODO(chunhtai): remove this ignore and migrate the code
       // https://github.com/flutter/flutter/issues/124045.
@@ -109,9 +112,9 @@ class GoRouteInformationParser extends RouteInformationParser<RouteMatchList> {
       }());
       return _updateRouteMatchList(
         matchList,
-        baseRouteMatchList: state.baseRouteMatchList,
-        completer: state.completer,
-        type: state.type,
+        baseRouteMatchList: routeInformationState.baseRouteMatchList,
+        completer: routeInformationState.completer,
+        type: routeInformationState.type,
       );
     });
   }
@@ -144,7 +147,7 @@ class GoRouteInformationParser extends RouteInformationParser<RouteMatchList> {
       // https://github.com/flutter/flutter/issues/124045.
       // ignore: deprecated_member_use
       location: location,
-      state: _routeMatchListCodec.encode(configuration),
+      state: configuration,
     );
   }
 

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -221,9 +222,13 @@ class GoRouter implements RouterConfig<RouteMatchList> {
       configuration: configuration,
     );
 
+    routeInformationCodec =
+        _RouteInformationCodec(RouteMatchListCodec(configuration));
+
     routeInformationProvider = GoRouteInformationProvider(
       initialLocation: _effectiveInitialLocation(initialLocation),
       initialExtra: initialExtra,
+      configuration: configuration,
       refreshListenable: refreshListenable,
     );
 
@@ -271,6 +276,9 @@ class GoRouter implements RouterConfig<RouteMatchList> {
 
   /// The route configuration used in go_router.
   late final RouteConfiguration configuration;
+
+  @override
+  late final Codec<RouteInformation?, Object?> routeInformationCodec;
 
   @override
   final BackButtonDispatcher backButtonDispatcher;
@@ -535,6 +543,53 @@ class GoRouter implements RouterConfig<RouteMatchList> {
     } else {
       return platformDefault;
     }
+  }
+}
+
+class _RouteInformationCodec extends Codec<RouteInformation?, Object?> {
+  _RouteInformationCodec(
+    RouteMatchListCodec codec,
+  )   : decoder = _RouteInformationDecoder(codec),
+        encoder = _RouteInformationEncoder(codec);
+
+  @override
+  final Converter<Object?, RouteInformation?> decoder;
+
+  @override
+  final Converter<RouteInformation?, Object?> encoder;
+}
+
+class _RouteInformationDecoder extends Converter<Object?, RouteInformation?> {
+  _RouteInformationDecoder(this.codec);
+  final RouteMatchListCodec codec;
+  @override
+  RouteInformation? convert(Object? input) {
+    if (input == null) {
+      return null;
+    }
+    assert(input is List<Object?> && input.length == 2);
+    final List<Object?> castedData = input as List<Object?>;
+    final String? uri = castedData.first as String?;
+    if (uri == null) {
+      return null;
+    }
+    return RouteInformation(
+        uri: Uri.parse(uri),
+        state: codec.decode(castedData.last! as Map<Object?, Object?>));
+  }
+}
+
+class _RouteInformationEncoder extends Converter<RouteInformation?, Object?> {
+  const _RouteInformationEncoder(this.codec);
+  final RouteMatchListCodec codec;
+  @override
+  Object? convert(RouteInformation? input) {
+    return input == null
+        ? null
+        : <Object?>[
+            input.uri.toString(),
+            codec.encode(input.state! as RouteMatchList)
+          ];
   }
 }
 

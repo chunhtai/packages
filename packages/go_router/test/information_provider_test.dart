@@ -6,6 +6,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'test_helpers.dart';
+
 const String initialRoute = '/';
 const String newRoute = '/new';
 
@@ -15,7 +17,13 @@ void main() {
         (WidgetTester tester) async {
       late final GoRouteInformationProvider provider =
           GoRouteInformationProvider(
-              initialLocation: initialRoute, initialExtra: null);
+              initialLocation: initialRoute,
+              initialExtra: null,
+              configuration: createRouteConfiguration(
+                  routes: <RouteBase>[],
+                  navigatorKey: GlobalKey<NavigatorState>(),
+                  topRedirect: (_, __) => null,
+                  redirectLimit: 100));
       provider.addListener(expectAsync0(() {}));
       provider.go(newRoute);
     });
@@ -24,7 +32,13 @@ void main() {
         (WidgetTester tester) async {
       late final GoRouteInformationProvider provider =
           GoRouteInformationProvider(
-              initialLocation: initialRoute, initialExtra: null);
+              initialLocation: initialRoute,
+              initialExtra: null,
+              configuration: createRouteConfiguration(
+                  routes: <RouteBase>[],
+                  navigatorKey: GlobalKey<NavigatorState>(),
+                  topRedirect: (_, __) => null,
+                  redirectLimit: 100));
       provider.addListener(expectAsync0(() {}));
       // TODO(chunhtai): remove this ignore and migrate the code
       // https://github.com/flutter/flutter/issues/124045.
