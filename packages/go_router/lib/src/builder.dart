@@ -138,7 +138,7 @@ class RouteBuilder {
     return builderWithNav(
       context,
       _buildNavigator(
-        pagePopContext.onPopPage,
+        pagePopContext.onDidRemovePage,
         _buildPages(context, matchList, pagePopContext, routerNeglect,
             navigatorKey, registry),
         navigatorKey,
@@ -271,7 +271,7 @@ class RouteBuilder {
           bool requestFocus = true,
         }) {
           return _buildNavigator(
-            pagePopContext.onPopPage,
+            pagePopContext.onDidRemovePage,
             keyToPages[shellNavigatorKey]!,
             shellNavigatorKey,
             observers: observers ?? const <NavigatorObserver>[],
@@ -305,7 +305,7 @@ class RouteBuilder {
   }
 
   static Widget _buildNavigator(
-    PopPageCallback onPopPage,
+    DidRemovePageCallback onDidRemovePage,
     List<Page<Object?>> pages,
     Key? navigatorKey, {
     List<NavigatorObserver> observers = const <NavigatorObserver>[],
@@ -318,7 +318,7 @@ class RouteBuilder {
       restorationScopeId: restorationScopeId,
       pages: pages,
       observers: observers,
-      onPopPage: onPopPage,
+      onDidRemovePage: onDidRemovePage,
       requestFocus: requestFocus,
     );
     if (heroController != null) {
@@ -590,8 +590,7 @@ class _PagePopContext {
   /// [RouteMatch] associated with the popped route.
   ///
   /// This assumes always pop the last route match for the page.
-  bool onPopPage(Route<dynamic> route, dynamic result) {
-    final Page<Object?> page = route.settings as Page<Object?>;
+  void onDidRemovePage(Page<dynamic> page) {
     final RouteMatch match = _routeMatchesLookUp[page]!.last;
     if (onPopPageWithRouteMatch(route, result, match)) {
       _routeMatchesLookUp[page]!.removeLast();
