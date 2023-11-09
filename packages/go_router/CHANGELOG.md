@@ -1,3 +1,7 @@
+## 12.2.0
+
+- Adds `GoRouter.routeMatchList` to grab current route above GoRouter.
+
 ## 12.1.0
 
 - Adds an ability to add a custom codec for serializing/deserializing extra.

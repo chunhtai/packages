@@ -4680,6 +4680,40 @@ void main() {
     );
   });
 
+  group('routeMatchList', () {
+    testWidgets('reflects imperative push', (WidgetTester tester) async {
+      final GoRouter router = GoRouter(
+        initialLocation: '/a',
+        routes: <GoRoute>[
+          GoRoute(
+            path: '/',
+            builder: (_, __) => const DummyScreen(),
+            routes: <RouteBase>[
+              GoRoute(
+                path: 'a',
+                builder: (_, __) => const Text('A Screen'),
+              ),
+              GoRoute(
+                path: 'b',
+                builder: (_, __) => const Text('B Screen'),
+              ),
+            ],
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+
+      expect(router.routeMatchList.uri.toString(), '/a');
+      expect(find.text('A Screen'), findsOneWidget);
+
+      router.push('/b');
+      await tester.pumpAndSettle();
+      expect(router.routeMatchList.uri.toString(), '/b');
+      expect(find.text('B Screen'), findsOneWidget);
+    });
+  });
+
   group('state restoration', () {
     testWidgets('Restores state correctly', (WidgetTester tester) async {
       final GlobalKey<DummyRestorableStatefulWidgetState> statefulWidgetKeyA =

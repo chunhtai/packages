@@ -317,6 +317,16 @@ class GoRouter implements RouterConfig<RouteMatchList> {
 
   final ValueListenable<RoutingConfig> _routingConfig;
 
+  /// A getter to get the top-most [RouteMatchList].
+  ///
+  /// This will reflects the most recent imperative pushed route if presents.
+  RouteMatchList get routeMatchList {
+    final RouteMatch lastMatch = routerDelegate.currentConfiguration.last;
+    return lastMatch is ImperativeRouteMatch
+        ? lastMatch.matches
+        : routerDelegate.currentConfiguration;
+  }
+
   /// Returns `true` if there is at least two or more route can be pop.
   bool canPop() => routerDelegate.canPop();
 
