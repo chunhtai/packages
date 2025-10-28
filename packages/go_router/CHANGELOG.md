@@ -1,3 +1,11 @@
+## 17.0.0
+
+- Added 'batch' option to CI config for go_router package.
+- Updated GitHub Actions workflow for batch releases of go_router.
+- Added 'batch' option to CI config for go_router package.
+- Updated GitHub Actions workflow for batch releases of go_router.
+
+
 ## 16.3.0
 
 - Adds a top-level `onEnter` callback with access to current and next route states.
